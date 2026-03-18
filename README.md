@@ -1,3 +1,12 @@
+## Interactive App
+
+This project includes a Streamlit web application that allows users to input applicant details and generate a real-time default risk prediction using the trained XGBoost model.
+
+To run locally:
+
+```bash
+streamlit run app.py
+
 # Credit Default Prediction using Machine Learning
 
 ## Overview
