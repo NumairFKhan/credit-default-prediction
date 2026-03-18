@@ -3,7 +3,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Credit Default Predictor", layout="centered")
+st.set_page_config(
+    page_title="Credit Default Predictor",
+    page_icon="📊",
+    layout="centered"
+)
 
 MODEL_PATH = "credit_default_xgb_pipeline.joblib"
 COLUMNS_PATH = "expected_columns.joblib"
@@ -19,81 +23,172 @@ def load_expected_columns():
 model = load_model()
 expected_columns = load_expected_columns()
 
-st.title("Credit Default Predictor")
-st.markdown("Enter applicant details and generate a default-risk prediction from the trained XGBoost pipeline.")
-
-st.subheader("Applicant inputs")
-
-# ---- Numeric inputs ----
-amt_income_total = st.number_input("AMT_INCOME_TOTAL", min_value=0.0, value=150000.0, step=1000.0)
-amt_credit = st.number_input("AMT_CREDIT", min_value=0.0, value=500000.0, step=1000.0)
-amt_annuity = st.number_input("AMT_ANNUITY", min_value=0.0, value=25000.0, step=500.0)
-amt_goods_price = st.number_input("AMT_GOODS_PRICE", min_value=0.0, value=450000.0, step=1000.0)
-
-days_birth = st.number_input("DAYS_BIRTH (negative number)", value=-15000, step=100)
-days_employed = st.number_input("DAYS_EMPLOYED (negative number; use 365243 if unknown)", value=-2000, step=100)
-
-region_rating_client_w_city = st.number_input("REGION_RATING_CLIENT_W_CITY", min_value=1, max_value=3, value=2, step=1)
-ext_source_1 = st.number_input("EXT_SOURCE_1", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-ext_source_2 = st.number_input("EXT_SOURCE_2", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-ext_source_3 = st.number_input("EXT_SOURCE_3", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-
-flag_document_3 = st.selectbox("FLAG_DOCUMENT_3", [0, 1], index=0)
-flag_emp_phone = st.selectbox("FLAG_EMP_PHONE", [0, 1], index=1)
-reg_city_not_live_city = st.selectbox("REG_CITY_NOT_LIVE_CITY", [0, 1], index=0)
-
-# ---- Categorical inputs ----
-code_gender = st.selectbox("CODE_GENDER", ["F", "M"])
-flag_own_car = st.selectbox("FLAG_OWN_CAR", ["N", "Y"])
-name_income_type = st.selectbox("NAME_INCOME_TYPE", ["Working", "Pensioner"])
-name_education_type = st.selectbox(
-    "NAME_EDUCATION_TYPE",
-    ["Higher education", "Secondary / secondary special"]
+st.title("📊 Credit Default Predictor")
+st.markdown(
+    "Estimate default risk from a small set of applicant details using a trained machine learning model."
 )
-name_contract_type = st.selectbox("NAME_CONTRACT_TYPE", ["Cash loans", "Revolving loans"])
-name_family_status = st.selectbox("NAME_FAMILY_STATUS", ["Married", "Single / not married"])
 
-# Start with all expected columns as NaN
-input_dict = {col: np.nan for col in expected_columns}
+st.info(
+    "This is an educational demo built from a public Kaggle dataset. "
+    "It is not financial advice or a production underwriting tool."
+)
 
-# Overwrite only the fields we collected
-input_dict["AMT_INCOME_TOTAL"] = amt_income_total
-input_dict["AMT_CREDIT"] = amt_credit
-input_dict["AMT_ANNUITY"] = amt_annuity
-input_dict["AMT_GOODS_PRICE"] = amt_goods_price
-input_dict["DAYS_BIRTH"] = days_birth
-input_dict["DAYS_EMPLOYED"] = days_employed
-input_dict["REGION_RATING_CLIENT_W_CITY"] = region_rating_client_w_city
-input_dict["EXT_SOURCE_1"] = ext_source_1
-input_dict["EXT_SOURCE_2"] = ext_source_2
-input_dict["EXT_SOURCE_3"] = ext_source_3
-input_dict["FLAG_DOCUMENT_3"] = flag_document_3
-input_dict["FLAG_EMP_PHONE"] = flag_emp_phone
-input_dict["REG_CITY_NOT_LIVE_CITY"] = reg_city_not_live_city
-input_dict["CODE_GENDER"] = code_gender
-input_dict["FLAG_OWN_CAR"] = flag_own_car
-input_dict["NAME_INCOME_TYPE"] = name_income_type
-input_dict["NAME_EDUCATION_TYPE"] = name_education_type
-input_dict["NAME_CONTRACT_TYPE"] = name_contract_type
-input_dict["NAME_FAMILY_STATUS"] = name_family_status
+with st.form("prediction_form"):
+    st.subheader("Personal profile")
 
-input_df = pd.DataFrame([input_dict])
+    col1, col2 = st.columns(2)
+    with col1:
+        age_years = st.slider("Age", min_value=18, max_value=80, value=40)
+        gender = st.selectbox(
+            "Gender",
+            ["F", "M"],
+            format_func=lambda x: "Female" if x == "F" else "Male"
+        )
+        family_status = st.selectbox(
+            "Family status",
+            ["Married", "Single / not married"]
+        )
 
-# Force correct column order
-input_df = input_df[expected_columns]
+    with col2:
+        years_employed = st.slider("Years employed", min_value=0, max_value=40, value=5)
+        education_level = st.selectbox(
+            "Education level",
+            ["Higher education", "Secondary / secondary special"]
+        )
+        owns_car = st.selectbox(
+            "Owns a car?",
+            ["N", "Y"],
+            format_func=lambda x: "No" if x == "N" else "Yes"
+        )
 
-if st.button("Predict default risk"):
+    st.subheader("Financial details")
+
+    col3, col4 = st.columns(2)
+    with col3:
+        annual_income = st.number_input(
+            "Annual income",
+            min_value=0.0,
+            value=150000.0,
+            step=1000.0,
+            help="Total annual income of the applicant."
+        )
+        loan_amount = st.number_input(
+            "Loan amount",
+            min_value=0.0,
+            value=500000.0,
+            step=1000.0,
+            help="Total credit amount requested."
+        )
+        annual_repayment = st.number_input(
+            "Annual repayment amount",
+            min_value=0.0,
+            value=25000.0,
+            step=500.0,
+            help="Approximate annual annuity / repayment obligation."
+        )
+
+    with col4:
+        purchase_price = st.number_input(
+            "Goods / purchase price",
+            min_value=0.0,
+            value=450000.0,
+            step=1000.0
+        )
+        income_type = st.selectbox(
+            "Income type",
+            ["Working", "Pensioner"]
+        )
+        loan_type = st.selectbox(
+            "Loan type",
+            ["Cash loans", "Revolving loans"]
+        )
+
+    st.subheader("Credit indicators")
+
+    col5, col6 = st.columns(2)
+    with col5:
+        regional_risk = st.selectbox(
+            "Regional risk rating",
+            [1, 2, 3],
+            index=1,
+            help="Higher values may indicate higher regional risk."
+        )
+        external_score_1 = st.number_input(
+            "External credit score 1",
+            min_value=0.0, max_value=1.0, value=0.50, step=0.01
+        )
+        external_score_2 = st.number_input(
+            "External credit score 2",
+            min_value=0.0, max_value=1.0, value=0.50, step=0.01
+        )
+
+    with col6:
+        external_score_3 = st.number_input(
+            "External credit score 3",
+            min_value=0.0, max_value=1.0, value=0.50, step=0.01
+        )
+        submitted_key_document = st.selectbox(
+            "Submitted key document?",
+            [0, 1],
+            format_func=lambda x: "No" if x == 0 else "Yes"
+        )
+        has_work_phone = st.selectbox(
+            "Has work phone?",
+            [0, 1],
+            index=1,
+            format_func=lambda x: "No" if x == 0 else "Yes"
+        )
+        different_live_city = st.selectbox(
+            "Lives in different city from registration?",
+            [0, 1],
+            format_func=lambda x: "No" if x == 0 else "Yes"
+        )
+
+    submitted = st.form_submit_button("Predict default risk")
+
+if submitted:
+    input_dict = {col: np.nan for col in expected_columns}
+
+    input_dict["AMT_INCOME_TOTAL"] = annual_income
+    input_dict["AMT_CREDIT"] = loan_amount
+    input_dict["AMT_ANNUITY"] = annual_repayment
+    input_dict["AMT_GOODS_PRICE"] = purchase_price
+    input_dict["DAYS_BIRTH"] = -age_years * 365
+    input_dict["DAYS_EMPLOYED"] = -years_employed * 365
+    input_dict["REGION_RATING_CLIENT_W_CITY"] = regional_risk
+    input_dict["EXT_SOURCE_1"] = external_score_1
+    input_dict["EXT_SOURCE_2"] = external_score_2
+    input_dict["EXT_SOURCE_3"] = external_score_3
+    input_dict["FLAG_DOCUMENT_3"] = submitted_key_document
+    input_dict["FLAG_EMP_PHONE"] = has_work_phone
+    input_dict["REG_CITY_NOT_LIVE_CITY"] = different_live_city
+    input_dict["CODE_GENDER"] = gender
+    input_dict["FLAG_OWN_CAR"] = owns_car
+    input_dict["NAME_INCOME_TYPE"] = income_type
+    input_dict["NAME_EDUCATION_TYPE"] = education_level
+    input_dict["NAME_CONTRACT_TYPE"] = loan_type
+    input_dict["NAME_FAMILY_STATUS"] = family_status
+
+    input_df = pd.DataFrame([input_dict])
+    input_df = input_df[expected_columns]
+
     probability = model.predict_proba(input_df)[0, 1]
 
-    st.subheader("Prediction")
-    st.write(f"Estimated default probability: **{probability:.1%}**")
+    st.subheader("Prediction result")
+    st.metric("Estimated default probability", f"{probability:.1%}")
 
     if probability < 0.10:
         st.success("Risk level: Low")
+        st.caption("The model views this profile as relatively lower risk.")
     elif probability < 0.20:
         st.warning("Risk level: Medium")
+        st.caption("The model views this profile as moderate risk.")
     else:
         st.error("Risk level: High")
+        st.caption("The model views this profile as relatively higher risk.")
 
-    st.subheader("Input preview")
-    st.dataframe(input_df.T)
+    with st.expander("Show model input data"):
+        st.dataframe(input_df.T)
+
+st.markdown("---")
+st.caption("Built with Streamlit, scikit-learn, XGBoost, and a public Kaggle credit dataset.")
